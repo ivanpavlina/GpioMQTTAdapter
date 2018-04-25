@@ -1,0 +1,58 @@
+# Remove .EXAMPLE from filename to use it
+
+log = {
+    'location': '/var/log/gpio_mqtt_adapter',  # Location for application logs
+    'formatter_main': '[%(asctime)s]:[%(levelname)s]: %(message)s',
+    'size': 1024 * 1024 * 50,  # 50MB
+    'backups': 10,
+    'level': 'INFO'
+}
+
+mqtt_broker = {
+    'host': '',
+    'port': '',
+    'keepalive': 60
+}
+
+mqtt = {
+    'status_message_interval': 5,
+
+    # LWT MQTT topic
+    'availability_topic': 'tele/mainrelay/LWT',  # LWT message topic
+    # MQTT state topic
+    'state_topic': 'tele/mainrelay/STATE',  # State topic, publishing current state on every status_message_interval
+
+    # MQTT topic templates
+    'device_control_topic_template': 'cmnd/mainrelay/{}/POWER',  # Relay control topic {}.format(devices.name)
+    'device_state_topic_template': 'stat/mainrelay/{}/POWER',  # Relay status topic {}.format(devices.name)
+
+    # MQTT payloads
+    #  Control
+    'payload_on': 'ON',
+    'payload_off': 'OFF',
+    'payload_toggle': 'TOGGLE',
+    #  Availability
+    'payload_available': 'Online',
+    'payload_not_available': 'Offline'
+}
+
+# Defined GPIO pins.
+# GPIO.BOARD schema is used
+devices = [
+    {'name': 'ch1',
+     'gpio_board_pin': 11},
+    {'name': 'ch2',
+     'gpio_board_pin': 12},
+    {'name': 'ch3',
+     'gpio_board_pin': 13},
+    {'name': 'ch4',
+     'gpio_board_pin': 15},
+    {'name': 'ch5',
+     'gpio_board_pin': 16},
+    {'name': 'ch6',
+     'gpio_board_pin': 18},
+    {'name': 'ch7',
+     'gpio_board_pin': 22},
+    {'name': 'ch8',
+     'gpio_board_pin': 7}
+]
