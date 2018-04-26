@@ -6,6 +6,7 @@ import logging
 from lib.logrotate.cloghandler import ConcurrentRotatingFileHandler
 from datetime import datetime
 import json
+import signal
 
 
 class Worker:
@@ -83,7 +84,7 @@ class Worker:
 
                     pin_state = self._gpio_read_pin_state(device_gpio_pin)
                     self._client.publish(device_status_topic, pin_state, qos=0)
-                    self.LOGGER.info("Published pin [{}] state [{}] on MQTT topic [{}]".format(pin_state,
+                    self.LOGGER.info("Published pin [{}] state [{}] on MQTT topic [{}]".format(device_gpio_pin,
                                                                                                pin_state,
                                                                                                device_status_topic))
         except Exception, e:
@@ -140,19 +141,20 @@ class Worker:
     def _cleanup(self):
         self.LOGGER.info("Cleanup started")
 
-        # Publish LWT message on disconnect
+        print 'tute'
+        # Publish LWT message before disconnect
         self._client.publish(config.mqtt['availability_topic'],
                              config.mqtt['payload_not_available'],
                              qos=2,
                              retain=True)
         self._client.loop()
         self.LOGGER.info("Published 'unavailable' on availablitiy topic")
-
+        print 'tete'
         self.LOGGER.info("Disconnecting MQTT client")
         # Disconnect broker
         self._client.disconnect()
         self._client.loop()
-
+        print 'tata'
         # Cleanup GPIO
         # Set every pin to off
         for gpio_pin in self._configured_pins:
@@ -165,14 +167,15 @@ class Worker:
         self.LOGGER.info("Cleanup finished")
 
     def run(self):
+        global run_loop
         self.LOGGER.info("Starting thread loop")
-
+        
         # Looping for initialization
         self._client.loop_start()
         # Give mqtt a moment to connect and settle
         sleep(1)
 
-        while True:
+        while run_loop:
             self.LOGGER.info("Running...")
             self._client.loop_stop()
 
@@ -188,14 +191,21 @@ class Worker:
                     sleep(config.mqtt['status_message_interval'])
                 except KeyboardInterrupt:
                     self.LOGGER.error("Got keyboard shutdown")
-                    self._cleanup()
+                    #self._cleanup()
                     break
 
             except Exception, e:
                 self.LOGGER.error("Exception in loop\n***{}".format(e))
-                self._cleanup()
+                #self._cleanup()
                 break
+        else:
+            print 'gasim'
+            self._cleanup()
 
+def shutdown_loop(signo, stack_frame):
+    # Called on sigterm
+    global run_loop
+    run_loop = False
 
 if __name__ == '__main__':
     logger = logging.getLogger()
@@ -204,6 +214,11 @@ if __name__ == '__main__':
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(logging.getLevelName(config.log['level']))
+
+    run_loop = True
+
+    # Setup listener for sigterm
+    signal.signal(signal.SIGTERM, shutdown_loop)
 
     worker = Worker(logger)
     worker.setup()
