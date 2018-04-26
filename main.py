@@ -1,6 +1,6 @@
 import paho.mqtt.client as mqtt
 import RPi.GPIO as GPIO
-from time import sleep
+from time import sleep,time
 from etc import config
 import logging
 from lib.logrotate.cloghandler import ConcurrentRotatingFileHandler
@@ -19,6 +19,7 @@ class Worker:
         self._client.on_connect = self._on_connect
         self._client.on_disconnect = self._on_disconnect
         self._client.on_message = self._on_message
+        self._client_connected = False
 
         # Init GPIO and set board pin numbering
         self._configured_pins = []
@@ -27,6 +28,8 @@ class Worker:
     # Callback
     def _on_connect(self, mqttc, obj, flags, rc):
         self.LOGGER.info("Connected MQTT broker")
+        self._client_connected = True
+
         # When connected subscribe to control topics
         try:
             subscribe_topics = []
@@ -53,7 +56,8 @@ class Worker:
     # Callback
     def _on_disconnect(self, client, userdata, rc):
         self.LOGGER.warning("Disconnected MQTT broker")
-
+        self._client_connected = False
+           
     # Callback
     # Called when message is received on subscribed topics
     def _on_message(self, mqttc, obj, msg):
@@ -149,12 +153,13 @@ class Worker:
                              retain=True)
         self._client.loop()
         self.LOGGER.info("Published 'unavailable' on availablitiy topic")
-        print 'tete'
-        self.LOGGER.info("Disconnecting MQTT client")
-        # Disconnect broker
-        self._client.disconnect()
-        self._client.loop()
-        print 'tata'
+
+        if self._client_connected:
+            self.LOGGER.info("Disconnecting MQTT client")
+            # Disconnect broker
+            self._client.disconnect()
+            self._client.loop()
+
         # Cleanup GPIO
         # Set every pin to off
         for gpio_pin in self._configured_pins:
@@ -174,16 +179,25 @@ class Worker:
         self._client.loop_start()
         # Give mqtt a moment to connect and settle
         sleep(1)
-
+        
+        start_time = time()
         while run_loop:
-            self.LOGGER.info("Running...")
-            self._client.loop_stop()
-
+            self.LOGGER.debug("Running...")
             try:
+                self._client.loop_stop()
                 # On each run publish this apps status on MQTT
                 topic = config.mqtt['state_topic']
-                payload = {'Time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                           'Uptime': 0}
+
+                try:
+                    app_uptime = int(round(time()-start_time) / 60)
+                except:
+                    app_uptime = 0
+
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                payload = {'Time': current_time,
+                           'Uptime': app_uptime}
+
                 self._client.publish(topic, json.dumps(payload), qos=0)
 
                 self._client.loop_start()
@@ -199,7 +213,6 @@ class Worker:
                 #self._cleanup()
                 break
         else:
-            print 'gasim'
             self._cleanup()
 
 def shutdown_loop(signo, stack_frame):
@@ -227,3 +240,4 @@ if __name__ == '__main__':
     except Exception, e:
         logger.warning("Main exiting >> {}".format(e))
     logger.warning("Bye Bye")
+
