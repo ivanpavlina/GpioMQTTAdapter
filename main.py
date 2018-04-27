@@ -40,8 +40,8 @@ class Worker:
                 subscribe_topics.append((device_control_topic, 1))
                 subscribe_topics.append((device_state_topic, 1))
             self.LOGGER.info("Generated {} topics for subscribing".format(len(subscribe_topics)))
-        except:
-            self.LOGGER.error("Error building topic list for subscribing")
+        except Exception, e:
+            self.LOGGER.error("Error building topic list for subscribing >> {}".format(e))
             raise
 
         try:
@@ -162,20 +162,13 @@ class Worker:
     def _cleanup(self):
         self.LOGGER.info("Cleanup started")
 
-        print 'tute'
         # Publish LWT message before disconnect
         self._client.publish(config.mqtt['availability_topic'],
                              config.mqtt['payload_not_available'],
                              qos=2,
                              retain=True)
         self._client.loop()
-        self.LOGGER.info("Published 'unavailable' on availablitiy topic")
-
-        if self._client_connected:
-            self.LOGGER.info("Disconnecting MQTT client")
-            # Disconnect broker
-            self._client.disconnect()
-            self._client.loop()
+        self.LOGGER.info("Published unavailable message availablitiy topic")
 
         # Cleanup GPIO
         # Set every pin to off
@@ -186,6 +179,13 @@ class Worker:
         # Release GPIO
         GPIO.cleanup()
         self.LOGGER.info("GPIO pins cleaned up")
+
+        # Disconnect broker
+        if self._client_connected:
+            self.LOGGER.info("Disconnecting MQTT client")
+            # Disconnect broker
+            self._client.disconnect()
+            self._client.loop()
 
         self.LOGGER.info("Cleanup finished")
 
@@ -223,20 +223,20 @@ class Worker:
                     sleep(config.mqtt['status_message_interval'])
                 except KeyboardInterrupt:
                     self.LOGGER.error("Got keyboard shutdown")
-                    #self._cleanup()
                     break
 
             except Exception, e:
                 self.LOGGER.error("Exception in loop\n***{}".format(e))
-                #self._cleanup()
                 break
-        else:
-            self._cleanup()
+
+        self._cleanup()
+
 
 def shutdown_loop(signo, stack_frame):
     # Called on sigterm
     global run_loop
     run_loop = False
+
 
 if __name__ == '__main__':
     logger = logging.getLogger()
@@ -257,5 +257,5 @@ if __name__ == '__main__':
         worker.run()
     except Exception, e:
         logger.warning("Main exiting >> {}".format(e))
-    logger.warning("Bye Bye")
+    logger.info("Bye Bye")
 
