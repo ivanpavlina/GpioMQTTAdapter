@@ -86,7 +86,6 @@ class Worker:
                     else:
                         raise Exception("Invalid payload received [{}] for [{}]".format(msg.payload, device['name']))
 
-                if msg.topic in (device_control_topic, device_status_topic):
                     self._mqtt_publish_pin_state(pin=device_gpio_pin, status_topic=device_status_topic)
         except Exception, e:
             self.LOGGER.warning("Error processing message [{}] >> \n{}".format(msg, e))
