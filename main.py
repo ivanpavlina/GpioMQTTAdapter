@@ -162,14 +162,6 @@ class Worker:
     def _cleanup(self):
         self.LOGGER.info("Cleanup started")
 
-        # Publish LWT message before disconnect
-        self._client.publish(config.mqtt['availability_topic'],
-                             config.mqtt['payload_not_available'],
-                             qos=2,
-                             retain=True)
-        self._client.loop()
-        self.LOGGER.info("Published unavailable message availablitiy topic")
-
         # Cleanup GPIO
         # Set every pin to off
         for gpio_pin in self._configured_pins:
@@ -179,6 +171,14 @@ class Worker:
         # Release GPIO
         GPIO.cleanup()
         self.LOGGER.info("GPIO pins cleaned up")
+
+        # Publish LWT message before disconnect
+        self._client.publish(config.mqtt['availability_topic'],
+                             config.mqtt['payload_not_available'],
+                             qos=2,
+                             retain=True)
+        self._client.loop()
+        self.LOGGER.info("Published unavailable message availablitiy topic")
 
         # Disconnect broker
         if self._client_connected:
