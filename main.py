@@ -86,11 +86,8 @@ class Worker:
                     else:
                         raise Exception("Invalid payload received [{}] for [{}]".format(msg.payload, device['name']))
 
-                    pin_state = self._gpio_read_pin_state(device_gpio_pin)
-                    self._client.publish(device_status_topic, pin_state, qos=0)
-                    self.LOGGER.info("Published pin [{}] state [{}] on MQTT topic [{}]".format(device_gpio_pin,
-                                                                                               pin_state,
-                                                                                               device_status_topic))
+                if msg.topic in (device_control_topic, device_status_topic):
+                    self._mqtt_publish_pin_state(pin=device_gpio_pin, status_topic=device_status_topic)
         except Exception, e:
             self.LOGGER.warning("Error processing message [{}] >> \n{}".format(msg, e))
 
@@ -119,6 +116,27 @@ class Worker:
                 return 'OFF'
         except Exception, e:
             self.LOGGER.error("Error reading pin {} state >> {}".format(pin, e))
+
+    def _mqtt_publish_pin_state(self, pin, status_topic=None):
+        pin_state = self._gpio_read_pin_state(pin)
+
+        # If status_topic not supplied search for topic for supplied pin number
+        if not status_topic:
+            for device in config.devices:
+                device_name = device['name']
+                device_gpio_pin = device['gpio_board_pin']
+                if device_gpio_pin == pin:
+                    status_topic = config.mqtt['device_state_topic_template'].format(device_name)
+
+        # If topic is still empty raise exception
+        if not status_topic:
+            self.LOGGER.warning('Topic for pin {} not defined, cannot publish status'.format(pin))
+            return
+
+        self._client.publish(status_topic, pin_state, qos=0)
+        self.LOGGER.info("Published pin [{}] state [{}] on MQTT topic [{}]".format(pin,
+                                                                                   pin_state,
+                                                                                   status_topic))
 
     def setup(self):
         # Connect MQTT
@@ -164,6 +182,7 @@ class Worker:
         # Set every pin to off
         for gpio_pin in self._configured_pins:
             self._gpio_switch_pin_state(gpio_pin, 'OFF')
+            self._mqtt_publish_pin_state(pin=gpio_pin)
 
         # Release GPIO
         GPIO.cleanup()
