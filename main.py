@@ -129,7 +129,6 @@ class Worker:
 
     def _mqtt_publish_pin_state(self, pin, status_topic=None):
         pin_state = self._gpio_read_pin_state(pin)
-
         # If status_topic not supplied search for topic for supplied pin number
         if not status_topic:
             for device in config.devices:
@@ -141,6 +140,11 @@ class Worker:
         # If topic is still empty raise exception
         if not status_topic:
             self.LOGGER.warning('Topic for pin {} not defined, cannot publish status'.format(pin))
+            return
+
+        pin_state = self._gpio_read_pin_state(pin)
+        if not pin_state:
+            self.LOGGER.warning('Unable to read pin {} state'.format(pin))
             return
 
         self._client.publish(status_topic, pin_state, qos=0)
@@ -174,7 +178,7 @@ class Worker:
 
         # Publish current GPIO states on MQTT
         for pin in self._configured_pins:
-            self._mqtt_publish_pin_state(self, pin)
+            self._mqtt_publish_pin_state(pin)
 
     def _cleanup(self):
         self.LOGGER.info("Cleanup started")
