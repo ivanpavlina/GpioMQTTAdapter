@@ -56,8 +56,13 @@ class Worker:
 
     # Callback
     def _on_disconnect(self, client, userdata, rc):
+        global run_loop
         self.LOGGER.warning("Disconnected MQTT broker")
         self._client_connected = False
+
+        if run_loop:
+            self._cleanup()
+            run_loop = False
            
     # Callback
     # Called when message is received on subscribed topics
@@ -230,11 +235,11 @@ class Worker:
                     sleep(config.mqtt['status_message_interval'])
                 except KeyboardInterrupt:
                     self.LOGGER.error("Got keyboard shutdown")
-                    break
+                    run_loop = False
 
             except Exception as e:
                 self.LOGGER.error("Exception in loop\n***{}".format(e))
-                break
+                run_loop = False
 
         self._cleanup()
 
