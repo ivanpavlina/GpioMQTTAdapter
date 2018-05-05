@@ -1,9 +1,10 @@
+import sys
 import paho.mqtt.client as mqtt
 import RPi.GPIO as GPIO
 from time import sleep,time
 from etc import config
 import logging
-from lib.logrotate.cloghandler import ConcurrentRotatingFileHandler
+#from lib.logrotate.cloghandler import ConcurrentRotatingFileHandler
 from datetime import datetime
 import json
 import signal
@@ -40,13 +41,13 @@ class Worker:
                 subscribe_topics.append((device_control_topic, 1))
                 subscribe_topics.append((device_state_topic, 1))
             self.LOGGER.info("Generated {} topics for subscribing".format(len(subscribe_topics)))
-        except Exception, e:
+        except Exception as e:
             self.LOGGER.error("Error building topic list for subscribing >> {}".format(e))
             raise
 
         try:
             self._client.subscribe(subscribe_topics)
-        except Exception, e:
+        except Exception as e:
             self.LOGGER.error("Error subscribing to topics [{}]".format(e))
             raise
 
@@ -71,23 +72,25 @@ class Worker:
                 device_control_topic = config.mqtt['device_control_topic_template'].format(device_name)
                 device_status_topic = config.mqtt['device_state_topic_template'].format(device_name)
 
-                if msg.topic == device_control_topic:
+                mtopic = msg.topic
+                mpayload = msg.payload
+                if mtopic == device_control_topic:
                     # Check if payload is correct and do appropriate action on GPIO
-                    if msg.payload == config.mqtt['payload_on']:
+                    if mpayload == config.mqtt['payload_on']:
                         self._gpio_switch_pin_state(device_gpio_pin, 'ON')
-                    elif msg.payload == config.mqtt['payload_off']:
+                    elif mpayload == config.mqtt['payload_off']:
                         self._gpio_switch_pin_state(device_gpio_pin, 'OFF')
-                    elif msg.payload == config.mqtt['payload_toggle']:
+                    elif mpayload == config.mqtt['payload_toggle']:
                         pin_state = self._gpio_read_pin_state(device_gpio_pin)
                         if pin_state == 'ON':
                             self._gpio_switch_pin_state(device_gpio_pin, 'OFF')
                         elif pin_state == 'OFF':
                             self._gpio_switch_pin_state(device_gpio_pin, 'ON')
                     else:
-                        raise Exception("Invalid payload received [{}] for [{}]".format(msg.payload, device['name']))
+                        raise Exception("Invalid payload received [{}] for [{}]".format(mpayload, device['name']))
 
                     self._mqtt_publish_pin_state(pin=device_gpio_pin, status_topic=device_status_topic)
-        except Exception, e:
+        except Exception as e:
             self.LOGGER.warning("Error processing message [{}] >> \n{}".format(msg, e))
 
     def _gpio_switch_pin_state(self, pin, real_state='OFF'):
@@ -100,7 +103,7 @@ class Worker:
 
             GPIO.output(pin, gpio_state)
             self.LOGGER.info("Pin {} switched to {}".format(pin, real_state))
-        except Exception, e:
+        except Exception as e:
             self.LOGGER.error("Error switching GPIO pin {} state to {} >> {}".format(pin, real_state, e))
             return False
 
@@ -113,7 +116,7 @@ class Worker:
                 return 'ON'
             else:
                 return 'OFF'
-        except Exception, e:
+        except Exception as e:
             self.LOGGER.error("Error reading pin {} state >> {}".format(pin, e))
 
     def _mqtt_publish_pin_state(self, pin, status_topic=None):
@@ -143,11 +146,10 @@ class Worker:
         try:
             # Before connecting to broker setup LWT message so the broker publishes it for us
             self._client.will_set(config.mqtt['availability_topic'], config.mqtt['payload_not_available'], retain=True)
-
             self._client.connect(config.mqtt_broker['host'],
                                  config.mqtt_broker['port'],
                                  config.mqtt_broker['keepalive'])
-        except Exception, e:
+        except Exception as e:
             self.LOGGER.error("Error connecting MQTT broker [{}]".format(e))
 
         # Initialize GPIO pins
@@ -155,7 +157,7 @@ class Worker:
             try:
                 GPIO.setup(device['gpio_board_pin'], GPIO.OUT, initial=GPIO.HIGH)
                 self._configured_pins.append(device['gpio_board_pin'])
-            except Exception, e:
+            except Exception as e:
                 self.LOGGER.error("Error initializing GPIO pin for device {} >> {}".format(device, e))
         self.LOGGER.info("GPIO pins initialized")
 
@@ -225,7 +227,7 @@ class Worker:
                     self.LOGGER.error("Got keyboard shutdown")
                     break
 
-            except Exception, e:
+            except Exception as e:
                 self.LOGGER.error("Exception in loop\n***{}".format(e))
                 break
 
@@ -241,7 +243,8 @@ def shutdown_loop(signo, stack_frame):
 if __name__ == '__main__':
     logger = logging.getLogger()
     formatter = logging.Formatter(config.log['formatter_main'])
-    handler = ConcurrentRotatingFileHandler(config.log['location'], "a", config.log['size'], config.log['backups'])
+    #handler = ConcurrentRotatingFileHandler(config.log['location'], "a", config.log['size'], config.log['backups'])
+    handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(logging.getLevelName(config.log['level']))
@@ -255,7 +258,7 @@ if __name__ == '__main__':
     worker.setup()
     try:
         worker.run()
-    except Exception, e:
+    except Exception as e:
         logger.warning("Main exiting >> {}".format(e))
     logger.info("Bye Bye")
 
