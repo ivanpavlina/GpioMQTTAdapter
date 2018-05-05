@@ -267,7 +267,7 @@ if __name__ == '__main__':
     worker = Worker(logger)
     try:
         worker.setup()
-    except Exception, e:
+    except Exception as e:
         logger.error("Error initializing application >>\n{}\nExiting...".format(e))
         sys.exit(1)
 
