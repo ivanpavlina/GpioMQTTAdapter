@@ -248,8 +248,13 @@ def shutdown_loop(signo, stack_frame):
 if __name__ == '__main__':
     logger = logging.getLogger()
     formatter = logging.Formatter(config.log['formatter_main'])
-    #handler = ConcurrentRotatingFileHandler(config.log['location'], "a", config.log['size'], config.log['backups'])
-    handler = logging.StreamHandler(sys.stdout)
+
+    # If log location set in config file use that. If not route log to stdout
+    if config.log['location']:
+        handler = ConcurrentRotatingFileHandler(config.log['location'], "a", config.log['size'], config.log['backups'])
+    else:
+        handler = logging.StreamHandler(sys.stdout)
+
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(logging.getLevelName(config.log['level']))

@@ -2,6 +2,7 @@
 
 log = {
     'location': '/var/log/gpio_mqtt_adapter',  # Location for application logs
+                                               # If empty will route log to stdout
     'formatter_main': '[%(asctime)s]:[%(levelname)s]: %(message)s',
     'size': 1024 * 1024 * 50,  # 50MB
     'backups': 10,
