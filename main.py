@@ -279,11 +279,12 @@ if __name__ == '__main__':
     try:
         worker.run()
     except Exception as e:
+        logger.warning("Main exiting unexpectedly!!! >> {}".format(e))
+
         # On main exit check run loop variable
         # If its not toggeled to False we have unexpected exit
-        if run_loop:
-            logger.warning("Main exiting unexpectedly!!! >> {}".format(e))
-            sys.exit(1)
-        else:
-            logger.info("Bye Bye")
-            sys.exit(0)
+    if run_loop:
+        sys.exit(1)
+    else:
+        logger.info("Bye Bye")
+        sys.exit(0)
