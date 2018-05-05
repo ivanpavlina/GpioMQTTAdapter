@@ -95,7 +95,8 @@ class Worker:
 
     def _gpio_switch_pin_state(self, pin, real_state='OFF'):
         try:
-            # Il je banana il je relej al GPIO.HIGH je na releju low, a GPIO.LOW je high
+            # GPIO.LOW -> RELAY ON
+            # GPIO.HIGH -> RELAY OFF
             if real_state == 'ON':
                 gpio_state = GPIO.LOW
             else:
@@ -112,6 +113,8 @@ class Worker:
     def _gpio_read_pin_state(self, pin):
         try:
             res = GPIO.input(pin)
+            # GPIO.LOW -> RELAY ON
+            # GPIO.HIGH -> RELAY OFF
             if res == GPIO.LOW:
                 return 'ON'
             else:
@@ -151,6 +154,7 @@ class Worker:
                                  config.mqtt_broker['keepalive'])
         except Exception as e:
             self.LOGGER.error("Error connecting MQTT broker [{}]".format(e))
+            raise
 
         # Initialize GPIO pins
         for device in config.devices:
@@ -159,6 +163,7 @@ class Worker:
                 self._configured_pins.append(device['gpio_board_pin'])
             except Exception as e:
                 self.LOGGER.error("Error initializing GPIO pin for device {} >> {}".format(device, e))
+                raise
         self.LOGGER.info("GPIO pins initialized")
 
     def _cleanup(self):
@@ -209,7 +214,7 @@ class Worker:
                 topic = config.mqtt['state_topic']
 
                 try:
-                    app_uptime = int(round(time()-start_time) / 60)
+                    app_uptime = int(round(time()-start_time)/60)
                 except:
                     app_uptime = 0
 
@@ -255,10 +260,21 @@ if __name__ == '__main__':
     signal.signal(signal.SIGTERM, shutdown_loop)
 
     worker = Worker(logger)
-    worker.setup()
+    try:
+        worker.setup()
+    except Exception, e:
+        logger.error("Error initializing application >>\n{}\nExiting...".format(e))
+        sys.exit(1)
+
     try:
         worker.run()
     except Exception as e:
-        logger.warning("Main exiting >> {}".format(e))
-    logger.info("Bye Bye")
+        # On main exit check run loop variable
+        # If its not toggeled to False we have unexpected exit
+        if run_loop:
+            logger.warning("Main exiting unexpectedly!!! >> {}".format(e))
+            sys.exit(1)
+        else:
+            logger.info("Bye Bye")
+            sys.exit(0)
 
