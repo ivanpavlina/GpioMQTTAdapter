@@ -4,7 +4,7 @@ import RPi.GPIO as GPIO
 from time import sleep,time
 from etc import config
 import logging
-#from lib.logrotate.cloghandler import ConcurrentRotatingFileHandler
+from lib.logrotate.cloghandler import ConcurrentRotatingFileHandler
 from datetime import datetime
 import json
 import signal
