@@ -283,3 +283,4 @@ if __name__ == '__main__':
             logger.info("Bye Bye")
             sys.exit(0)
 
+        logger.info("cya")
