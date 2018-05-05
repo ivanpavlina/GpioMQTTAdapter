@@ -164,12 +164,17 @@ class Worker:
         # Initialize GPIO pins
         for device in config.devices:
             try:
-                GPIO.setup(device['gpio_board_pin'], GPIO.OUT, initial=GPIO.HIGH)
+                #GPIO.setup(device['gpio_board_pin'], GPIO.OUT, initial=GPIO.HIGH)
+                GPIO.setup(device['gpio_board_pin'], GPIO.OUT)
                 self._configured_pins.append(device['gpio_board_pin'])
             except Exception as e:
                 self.LOGGER.error("Error initializing GPIO pin for device {} >> {}".format(device, e))
                 raise
         self.LOGGER.info("GPIO pins initialized")
+
+        # Publish current GPIO states on MQTT
+        for pin in self._configured_pins:
+            self._mqtt_publish_pin_state(self, pin)
 
     def _cleanup(self):
         self.LOGGER.info("Cleanup started")
